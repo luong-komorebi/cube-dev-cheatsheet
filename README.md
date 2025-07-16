@@ -349,6 +349,10 @@ preAggregations: {
 
 ## API Queries
 
+It is pointless to keep track of the API query format, as it can change frequently. Below is just an example, following [Cube.dev REST API query format.](https://cube.dev/docs/product/apis-integrations/rest-api/query-format) to get a sense of what might be included in a query.
+
+For the latest API documentation, please refer to the official Cube.dev documentation.
+
 ### REST API Query Format
 
 ```javascript
@@ -394,6 +398,47 @@ query {
   }
 }
 ```
+
+### SQL API
+
+*Query Cube.dev using standard SQL syntax - great for BI tools and SQL-familiar developers*
+
+```sql
+-- Basic query
+SELECT
+  count,
+  status,
+  DATE_TRUNC('month', "Orders.createdAt") as month
+FROM Orders
+WHERE status = 'completed'
+ORDER BY month DESC;
+
+-- Joins across cubes
+SELECT
+  "Orders.count",
+  "Orders.totalRevenue",
+  "Users.city",
+  "Products.category"
+FROM Orders
+JOIN Users ON TRUE
+JOIN Products ON TRUE
+WHERE "Orders.status" = 'completed';
+
+-- Time dimensions with granularity
+SELECT
+  "Orders.totalRevenue",
+  DATE_TRUNC('day', "Orders.createdAt") as order_date
+FROM Orders
+WHERE "Orders.createdAt" >= '2023-01-01'
+GROUP BY order_date;
+```
+
+SQL API Transport Options:
+
+- Postgres (default): Same protocol as psql - works with any PostgreSQL-compatible tool
+- HTTP: JSON-based protocol - use for embedded analytics when REST API isn't available
+
+> 📝 Note: Cube.dev also supports additional APIs and integrations including WebSocket subscriptions for real-time data, embedded analytics SDKs, semantic layer integrations with various BI tools, and custom API extensions. Check the Cube.dev documentation for the complete list of available integrations.
 
 ## Filters and Operators
 
