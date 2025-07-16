@@ -1,5 +1,7 @@
 # Cube.dev Cheatsheet
 
+[See example usage](./example.md)
+
 ## Basic Concepts
 
 ### Core Components
