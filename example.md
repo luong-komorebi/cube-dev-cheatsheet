@@ -1,8 +1,8 @@
-# Cube.dev Example Workflow: Real E-commerce Analytics
+# Cube.dev Workflow: Real E-commerce Analytics with Kaggle Dataset
 
 ## The Business Problem
 
-Using the **[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)** from Kaggle, we'll build analytics to track:
+Using the [**Brazilian E-Commerce Public Dataset by Olist**](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) from Kaggle, we'll build analytics to track:
 
 - **Order volume and revenue trends over time**
 - **Product performance by category and seller**
@@ -17,7 +17,7 @@ Using the **[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.co
 > - **Debugging and troubleshooting** when things don't work as expected
 > - **Team collaboration** through code reviews and Git workflows
 >
-> I'll show you what's actually happening "under the hood" so you can take a glimpse into the Cube.dev architecture and how to effectively use it in real-world scenarios.
+> We'll show you what's actually happening "under the hood" so you can fully leverage Cube.dev's capabilities!
 
 ## Real Dataset: Brazilian E-Commerce (Olist)
 
@@ -41,131 +41,40 @@ unzip brazilian-ecommerce.zip
 # - product_category_name_translation.csv
 ```
 
-### Database Schema (PostgreSQL)
+### DuckDB Setup
+
+```bash
+# Install DuckDB (no server needed)
+npm install duckdb
+
+# Create data directory
+mkdir data
+mv *.csv data/
+```
+
+### Data Loading with DuckDB (Direct CSV Access)
 
 ```sql
--- Customers table
-CREATE TABLE customers (
-    customer_id VARCHAR(32) PRIMARY KEY,
-    customer_unique_id VARCHAR(32),
-    customer_zip_code_prefix VARCHAR(5),
-    customer_city VARCHAR(100),
-    customer_state VARCHAR(2)
-);
-
--- Orders table
-CREATE TABLE orders (
-    order_id VARCHAR(32) PRIMARY KEY,
-    customer_id VARCHAR(32) REFERENCES customers(customer_id),
-    order_status VARCHAR(20),
-    order_purchase_timestamp TIMESTAMP,
-    order_approved_at TIMESTAMP,
-    order_delivered_carrier_date TIMESTAMP,
-    order_delivered_customer_date TIMESTAMP,
-    order_estimated_delivery_date TIMESTAMP
-);
-
--- Products table
-CREATE TABLE products (
-    product_id VARCHAR(32) PRIMARY KEY,
-    product_category_name VARCHAR(100),
-    product_name_lenght INTEGER,
-    product_description_lenght INTEGER,
-    product_photos_qty INTEGER,
-    product_weight_g INTEGER,
-    product_length_cm INTEGER,
-    product_height_cm INTEGER,
-    product_width_cm INTEGER
-);
-
--- Order items table
-CREATE TABLE order_items (
-    order_id VARCHAR(32) REFERENCES orders(order_id),
-    order_item_id INTEGER,
-    product_id VARCHAR(32) REFERENCES products(product_id),
-    seller_id VARCHAR(32),
-    shipping_limit_date TIMESTAMP,
-    price DECIMAL(10,2),
-    freight_value DECIMAL(10,2),
-    PRIMARY KEY (order_id, order_item_id)
-);
-
--- Sellers table
-CREATE TABLE sellers (
-    seller_id VARCHAR(32) PRIMARY KEY,
-    seller_zip_code_prefix VARCHAR(5),
-    seller_city VARCHAR(100),
-    seller_state VARCHAR(2)
-);
-
--- Order reviews table
-CREATE TABLE order_reviews (
-    review_id VARCHAR(32) PRIMARY KEY,
-    order_id VARCHAR(32) REFERENCES orders(order_id),
-    review_score INTEGER,
-    review_comment_title TEXT,
-    review_comment_message TEXT,
-    review_creation_date TIMESTAMP,
-    review_answer_timestamp TIMESTAMP
-);
-
--- Order payments table
-CREATE TABLE order_payments (
-    order_id VARCHAR(32) REFERENCES orders(order_id),
-    payment_sequential INTEGER,
-    payment_type VARCHAR(20),
-    payment_installments INTEGER,
-    payment_value DECIMAL(10,2),
-    PRIMARY KEY (order_id, payment_sequential)
-);
-
--- Product categories translation
-CREATE TABLE product_categories (
-    product_category_name VARCHAR(100) PRIMARY KEY,
-    product_category_name_english VARCHAR(100)
-);
+-- No complex loading needed! DuckDB reads CSVs directly
+-- Just reference CSV files in your cube SQL
+SELECT * FROM 'data/olist_customers_dataset.csv';
+SELECT * FROM 'data/olist_orders_dataset.csv';
 ```
 
-### Data Loading Example
+**Why DuckDB?**
 
-```python
-# load_data.py - Script to load CSV data into PostgreSQL
-import pandas as pd
-import psycopg2
-from sqlalchemy import create_engine
+- **No server setup** - just a single file database
+- **Direct CSV reading** - no ETL process needed
+- **Perfect for analytics** - built for data analysis
+- **Lightweight** - ideal for learning and development
+- **Production ready** - scales to billions of rows
 
-# Database connection
-engine = create_engine('postgresql://user:password@localhost/olist_ecommerce')
-
-# Load CSV files
-customers_df = pd.read_csv('olist_customers_dataset.csv')
-orders_df = pd.read_csv('olist_orders_dataset.csv')
-products_df = pd.read_csv('olist_products_dataset.csv')
-order_items_df = pd.read_csv('olist_order_items_dataset.csv')
-sellers_df = pd.read_csv('olist_sellers_dataset.csv')
-reviews_df = pd.read_csv('olist_order_reviews_dataset.csv')
-payments_df = pd.read_csv('olist_order_payments_dataset.csv')
-categories_df = pd.read_csv('product_category_name_translation.csv')
-
-# Load into database
-customers_df.to_sql('customers', engine, if_exists='replace', index=False)
-orders_df.to_sql('orders', engine, if_exists='replace', index=False)
-products_df.to_sql('products', engine, if_exists='replace', index=False)
-order_items_df.to_sql('order_items', engine, if_exists='replace', index=False)
-sellers_df.to_sql('sellers', engine, if_exists='replace', index=False)
-reviews_df.to_sql('order_reviews', engine, if_exists='replace', index=False)
-payments_df.to_sql('order_payments', engine, if_exists='replace', index=False)
-categories_df.to_sql('product_categories', engine, if_exists='replace', index=False)
-
-print("Data loaded successfully!")
-```
-
-## Step 1: Project Setup
+## Project Setup
 
 ### Initialize Cube.dev Project
 
 ```bash
-npx cubejs-cli create olist-analytics -d postgres
+npx cubejs-cli create olist-analytics -d duckdb
 cd olist-analytics
 ```
 
@@ -173,24 +82,42 @@ cd olist-analytics
 
 ```bash
 # .env file
-CUBEJS_DB_TYPE=postgres
-CUBEJS_DB_HOST=localhost
-CUBEJS_DB_NAME=olist_ecommerce
-CUBEJS_DB_USER=postgres
-CUBEJS_DB_PASS=password
-CUBEJS_DB_PORT=5432
+CUBEJS_DB_TYPE=duckdb
+CUBEJS_DB_NAME=./olist_ecommerce.db
 CUBEJS_API_SECRET=your-secret-key-here
 CUBEJS_DEV_MODE=true
+
+# Optional: Set data path for CSV files
+CUBEJS_DB_DUCKDB_MEMORY_LIMIT=2GB
+CUBEJS_DB_DUCKDB_THREADS=4
 ```
 
-## Step 2: Define Data Schema
+### DuckDB Database File Creation
+
+```javascript
+// Optional: create-db.js - Initialize DuckDB with CSV data
+const Database = require('duckdb').Database;
+const path = require('path');
+
+const db = new Database('./olist_ecommerce.db');
+
+// DuckDB will automatically read CSV files when referenced in SQL
+// No need to create tables or load data manually!
+console.log('DuckDB database ready - will read CSVs directly!');
+```
+
+## Define Data Schema
 
 ### model/cubes/customers.yml
 
 ```yaml
 cubes:
   - name: customers
-    sql_table: customers
+    sql: >
+      SELECT * FROM read_csv_auto('data/olist_customers_dataset.csv',
+        header=true,
+        auto_detect=true
+      )
 
     measures:
       - name: count
@@ -242,7 +169,12 @@ cubes:
 ```yaml
 cubes:
   - name: orders
-    sql_table: orders
+    sql: >
+      SELECT * FROM read_csv_auto('data/olist_orders_dataset.csv',
+        header=true,
+        auto_detect=true,
+        timestampformat='%Y-%m-%d %H:%M:%S'
+      )
 
     joins:
       - name: customers
@@ -282,7 +214,7 @@ cubes:
 
       # Advanced: Delivery time analysis
       - name: avg_delivery_time
-        sql: "EXTRACT(EPOCH FROM (order_delivered_customer_date - order_purchase_timestamp)) / 86400"
+        sql: "EXTRACT(EPOCH FROM (order_delivered_customer_date::TIMESTAMP - order_purchase_timestamp::TIMESTAMP)) / 86400"
         type: avg
         title: Average Delivery Time (Days)
         filters:
@@ -294,7 +226,7 @@ cubes:
         type: count
         title: On-Time Deliveries
         filters:
-          - sql: "{CUBE}.order_delivered_customer_date <= {CUBE}.order_estimated_delivery_date"
+          - sql: "{CUBE}.order_delivered_customer_date::TIMESTAMP <= {CUBE}.order_estimated_delivery_date::TIMESTAMP"
 
       - name: delivery_performance_rate
         sql: "{on_time_deliveries} / NULLIF({delivered_orders}, 0) * 100"
@@ -318,22 +250,22 @@ cubes:
         title: Order Status
 
       - name: purchase_timestamp
-        sql: order_purchase_timestamp
+        sql: "order_purchase_timestamp::TIMESTAMP"
         type: time
         title: Purchase Date
 
       - name: approved_at
-        sql: order_approved_at
+        sql: "order_approved_at::TIMESTAMP"
         type: time
         title: Approved Date
 
       - name: delivered_date
-        sql: order_delivered_customer_date
+        sql: "order_delivered_customer_date::TIMESTAMP"
         type: time
         title: Delivered Date
 
       - name: estimated_delivery_date
-        sql: order_estimated_delivery_date
+        sql: "order_estimated_delivery_date::TIMESTAMP"
         type: time
         title: Est. Delivery Date
 
@@ -342,7 +274,7 @@ cubes:
         sql: >
           CASE
             WHEN order_delivered_customer_date IS NULL THEN 'Not Delivered'
-            WHEN order_delivered_customer_date <= order_estimated_delivery_date THEN 'On Time'
+            WHEN order_delivered_customer_date::TIMESTAMP <= order_estimated_delivery_date::TIMESTAMP THEN 'On Time'
             ELSE 'Late'
           END
         type: string
@@ -354,7 +286,7 @@ cubes:
         title: Delivered Orders Only
 
       - name: recent_orders
-        sql: "{CUBE}.order_purchase_timestamp >= '2018-01-01'"
+        sql: "{CUBE}.order_purchase_timestamp::TIMESTAMP >= '2018-01-01'"
         title: Recent Orders (2018+)
 ```
 
@@ -366,9 +298,10 @@ cubes:
     sql: >
       SELECT
         p.*,
-        pc.product_category_name_english as category_english
-      FROM products p
-      LEFT JOIN product_categories pc ON p.product_category_name = pc.product_category_name
+        COALESCE(pc.product_category_name_english, p.product_category_name) as category_english
+      FROM read_csv_auto('data/olist_products_dataset.csv', header=true, auto_detect=true) p
+      LEFT JOIN read_csv_auto('data/product_category_name_translation.csv', header=true, auto_detect=true) pc
+        ON p.product_category_name = pc.product_category_name
 
     measures:
       - name: count
@@ -450,7 +383,12 @@ cubes:
 ```yaml
 cubes:
   - name: order_items
-    sql_table: order_items
+    sql: >
+      SELECT * FROM read_csv_auto('data/olist_order_items_dataset.csv',
+        header=true,
+        auto_detect=true,
+        timestampformat='%Y-%m-%d %H:%M:%S'
+      )
 
     joins:
       - name: orders
@@ -535,7 +473,7 @@ cubes:
         format: currency
 
       - name: shipping_limit_date
-        sql: shipping_limit_date
+        sql: "shipping_limit_date::TIMESTAMP"
         type: time
         title: Shipping Limit
 
@@ -578,7 +516,12 @@ cubes:
 ```yaml
 cubes:
   - name: order_reviews
-    sql_table: order_reviews
+    sql: >
+      SELECT * FROM read_csv_auto('data/olist_order_reviews_dataset.csv',
+        header=true,
+        auto_detect=true,
+        timestampformat='%Y-%m-%d %H:%M:%S'
+      )
 
     joins:
       - name: orders
@@ -639,7 +582,7 @@ cubes:
         title: Review Score
 
       - name: review_creation_date
-        sql: review_creation_date
+        sql: "review_creation_date::TIMESTAMP"
         type: time
         title: Review Date
 
@@ -667,7 +610,7 @@ cubes:
 
     segments:
       - name: recent_reviews
-        sql: "{CUBE}.review_creation_date >= '2018-01-01'"
+        sql: "{CUBE}.review_creation_date::TIMESTAMP >= '2018-01-01'"
         title: Recent Reviews (2018+)
 ```
 
@@ -676,7 +619,11 @@ cubes:
 ```yaml
 cubes:
   - name: sellers
-    sql_table: sellers
+    sql: >
+      SELECT * FROM read_csv_auto('data/olist_sellers_dataset.csv',
+        header=true,
+        auto_detect=true
+      )
 
     measures:
       - name: count
@@ -716,7 +663,7 @@ cubes:
 views:
   - name: ecommerce_overview
     title: E-commerce Overview Dashboard
-    description: Complete Brazilian e-commerce analytics from Olist dataset
+    description: Complete Brazilian e-commerce analytics from Olist dataset using DuckDB
 
     cubes:
       # Orders metrics
@@ -772,58 +719,49 @@ views:
           - review_category
 ```
 
-### model/views/product_analytics.yml
+### DuckDB Benefits for This Use Case
 
-```yaml
-views:
-  - name: product_analytics
-    title: Product Performance Analytics
-    description: Deep dive into product categories and performance metrics
+- **Zero setup** - no database server installation
+- **Direct CSV access** - reads files on-demand
+- **Fast analytics** - optimized for analytical queries
+- **Auto-detection** - automatically infers CSV column types
+- **Memory efficient** - only loads needed data
+- **Production ready** - handles datasets up to TB scale
 
-    cubes:
-      # Product core data
-      - join_path: products
-        includes:
-          - count
-          - category_english
-          - size_category
-          - photo_quality
-          - avg_weight
-
-      # Sales performance via order items
-      - join_path: order_items
-        prefix: true
-        includes:
-          - total_revenue
-          - count
-          - avg_price
-
-        # Only include delivered orders
-        filters:
-          - member: orders.status
-            operator: equals
-            values: ['delivered']
-
-      # Review data for products
-      - join_path: order_items.orders.order_reviews
-        prefix: true
-        includes:
-          - avg_review_score
-          - satisfaction_rate
-```
-
-## Step 3: Start Development Server
+## Start Development Server
 
 ```bash
 npm run dev
 ```
 
-This starts:
+## Start Development Server
 
-- **Cube.dev API** at <http://localhost:4000>
-- **Developer Playground** at <http://localhost:4000/#/build>
+```bash
+# Place CSV files in data/ directory
+mkdir data
+mv *.csv data/
 
-## Step 4: Build Queries in Playground
+# Start Cube.dev development server
+npm run dev
+```
+
+**What happens:**
+
+- **Cube.dev API** starts at <http://localhost:4000>
+- **Developer Playground** opens at <http://localhost:4000/#/build>
+- **DuckDB database** created automatically as `./olist_ecommerce.db`
+- **CSV files** read on-demand when cubes are queried
+- **Schema validation** ensures your YAML cubes are correct
+
+**DuckDB Features:**
+
+- No database server to install or configure
+- CSV files are automatically detected and typed
+- Queries run directly against CSV data
+- Results are cached for performance
+- Suitable for development and learning
+
+## Build Queries in Playground
 
 ### Query 1: Daily Sales Performance & Trends
 
@@ -1003,7 +941,7 @@ This starts:
 }
 ```
 
-## Step 5: API Integration
+## API Integration
 
 ### REST API Example (Node.js) - Brazilian E-commerce Analytics
 
@@ -1084,7 +1022,7 @@ async function getBrazilianEcommerceInsights() {
       )?.['order_reviews.satisfaction_rate'] || 0
     };
 
-    console.log('🇧🇷 Brazilian E-commerce Insights:', insights);
+    console.log('Brazilian E-commerce Insights:', insights);
     return { raw: results, insights };
 
   } catch (error) {
@@ -1172,7 +1110,7 @@ function BrazilianEcommerceDashboard() {
   return (
     <div className="dashboard">
       <header>
-        <h1>🇧🇷 Brazilian E-commerce Analytics Dashboard</h1>
+        <h1>Brazilian E-commerce Analytics Dashboard</h1>
         <p>Insights from Olist Dataset (2017-2018)</p>
       </header>
 
@@ -1243,7 +1181,7 @@ function BrazilianEcommerceDashboard() {
               <tr key={index}>
                 <td><strong>{state['customers.state']}</strong></td>
                 <td>R$ {parseFloat(state['order_items.total_revenue'] || 0).toLocaleString('pt-BR')}</td>
-                <td>⭐ {parseFloat(state['order_reviews.avg_review_score'] || 0).toFixed(1)}/5</td>
+                <td>{parseFloat(state['order_reviews.avg_review_score'] || 0).toFixed(1)}/5</td>
                 <td>{parseFloat(state['orders.delivery_performance_rate'] || 0).toFixed(1)}%</td>
               </tr>
             ))}
@@ -1282,7 +1220,7 @@ function EcommerceOverviewDashboard() {
 
   return (
     <div className="overview-dashboard">
-      <h2>📊 E-commerce Overview (Using Views)</h2>
+      <h2>E-commerce Overview (Using Views)</h2>
       <table>
         <thead>
           <tr>
@@ -1316,7 +1254,7 @@ function KPIWidget({ title, value, format = 'number', trend }) {
       case 'percent':
         return `${val.toFixed(1)}%`;
       case 'rating':
-        return `${val.toFixed(1)}/5 ⭐`;
+        return `${val.toFixed(1)}/5`;
       default:
         return val.toLocaleString();
     }
@@ -1327,7 +1265,7 @@ function KPIWidget({ title, value, format = 'number', trend }) {
       <h3>{title}</h3>
       <div className="kpi-value">{formatValue(value)}</div>
       {trend && <div className={`trend ${trend > 0 ? 'positive' : 'negative'}`}>
-        {trend > 0 ? '↗️' : '↘️'} {Math.abs(trend).toFixed(1)}%
+        {trend > 0 ? '+' : '-'} {Math.abs(trend).toFixed(1)}%
       </div>}
     </div>
   );
@@ -1347,7 +1285,7 @@ function App() {
 export default App;
 ```
 
-### Advanced API Usage: Custom Analytics Endpoints
+### Advanced API Usage: Custom Analytics Endpoints with DuckDB
 
 ```javascript
 // server/custom-analytics.js
@@ -1356,14 +1294,14 @@ const CubejsServer = require('@cubejs-backend/server');
 
 const server = new CubejsServer();
 
-// Custom endpoint for Brazilian market insights
+// Custom endpoint for Brazilian market insights leveraging DuckDB's speed
 server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
   const { dateRange, topN = 10 } = req.body;
 
   try {
     const cubejsApi = req.cubejsApi;
 
-    // Parallel queries for comprehensive insights using corrected naming
+    // Parallel queries execute fast with DuckDB's vectorized processing
     const [
       salesTrends,
       categoryPerformance,
@@ -1371,7 +1309,7 @@ server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
       satisfactionMetrics,
       logisticsKPIs
     ] = await Promise.all([
-      // Sales trend analysis
+      // Sales trend analysis - DuckDB reads CSV and aggregates efficiently
       cubejsApi.load({
         measures: ['order_items.total_revenue', 'orders.count'],
         timeDimensions: [{
@@ -1382,7 +1320,7 @@ server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
         segments: ['orders.delivered_orders']
       }),
 
-      // Category performance
+      // Category performance - leverages DuckDB's fast grouping
       cubejsApi.load({
         measures: ['order_items.total_revenue', 'order_items.count', 'order_items.avg_price'],
         dimensions: ['products.category_english'],
@@ -1391,7 +1329,7 @@ server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
         limit: topN
       }),
 
-      // Geographic analysis
+      // Geographic analysis - DuckDB handles joins across CSV files seamlessly
       cubejsApi.load({
         measures: ['order_items.total_revenue', 'customers.unique_customers'],
         dimensions: ['customers.state'],
@@ -1454,8 +1392,10 @@ server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
       insights,
       metadata: {
         dataSource: 'Brazilian E-Commerce Public Dataset (Olist)',
+        database: 'DuckDB with direct CSV access',
         period: dateRange || ['2017-01-01', '2018-08-31'],
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        performance: 'Powered by DuckDB vectorized execution'
       }
     });
 
@@ -1467,15 +1407,81 @@ server.addExtension('POST', '/api/brazil-insights', async (req, res) => {
   }
 });
 
-// Usage example
+// Advanced: Direct DuckDB query endpoint for power users
+server.addExtension('POST', '/api/duckdb-query', async (req, res) => {
+  const { sql } = req.body;
+
+  // Example: Custom analytical queries that leverage DuckDB's advanced features
+  const allowedPatterns = [
+    /^SELECT.*FROM read_csv_auto/i,
+    /^WITH.*AS \(SELECT/i  // Allow CTEs for complex analysis
+  ];
+
+  const isAllowed = allowedPatterns.some(pattern => pattern.test(sql));
+
+  if (!isAllowed) {
+    return res.status(400).json({
+      success: false,
+      error: 'Only analytical SELECT queries on CSV files are allowed'
+    });
+  }
+
+  try {
+    // Execute custom DuckDB queries for advanced analytics
+    const result = await req.duckDbConnection.query(sql);
+    res.json({
+      success: true,
+      data: result,
+      metadata: {
+        query: sql,
+        executedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: `Query execution failed: ${error.message}`
+    });
+  }
+});
+
+// Usage examples
 // POST /api/brazil-insights
 // {
 //   "dateRange": ["2018-01-01", "2018-06-30"],
 //   "topN": 15
 // }
+
+// POST /api/duckdb-query
+// {
+//   "sql": "SELECT customer_state, COUNT(*) as orders, AVG(price) as avg_price FROM read_csv_auto('data/olist_order_items_dataset.csv', header=true) oi JOIN read_csv_auto('data/olist_orders_dataset.csv', header=true) o ON oi.order_id = o.order_id JOIN read_csv_auto('data/olist_customers_dataset.csv', header=true) c ON o.customer_id = c.customer_id GROUP BY customer_state ORDER BY orders DESC"
+// }
 ```
 
-## Step 6: Production Deployment
+### DuckDB Performance Benefits in Production
+
+**Query Performance:**
+
+- **Sub-second responses** on 100K+ order dataset
+- **Vectorized execution** processes multiple rows simultaneously
+- **Columnar storage** only reads needed columns
+- **Parallel processing** uses all available CPU cores
+
+**Memory Efficiency:**
+
+- **Lazy loading** - only loads queried data into memory
+- **Smart caching** - frequently accessed data stays in RAM
+- **Compression** - CSV data compressed automatically
+- **Memory limits** - configurable per-query memory usage
+
+**Scaling Characteristics:**
+
+- **Local development** - Single CSV files up to GB scale
+- **Production** - Convert to Parquet for better compression/speed
+- **Enterprise** - Connect to S3/GCS for multi-TB datasets
+- **Real-time** - Stream processing with DuckDB + Apache Arrow
+
+## Production Deployment
 
 ### Build for Production
 
