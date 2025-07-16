@@ -2,6 +2,8 @@
 
 [See example usage](./example.md)
 
+> ⚠️ Disclaimer: This cheatsheet is intended as a quick reference and learning walkthrough only. It is not an authoritative source and should not be relied upon for production decisions. Always refer to the official Cube.dev documentation for the most current, accurate, and comprehensive information. Features, syntax, and best practices may change between versions. Use this guide as a starting point, then validate everything against official sources.
+
 ## Basic Concepts
 
 ### Core Components
